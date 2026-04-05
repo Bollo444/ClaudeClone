@@ -22,7 +22,9 @@ After cloning the repository:
 
 ```bash
 bun install
+./install.sh
 ```
+This creates a global claudeclone command that works from any directory.
 
 ### Running CLaudeClone
 

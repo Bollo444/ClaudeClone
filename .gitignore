@@ -65,3 +65,8 @@ coverage/
 *.cpuprofile
 *.heapprofile
 *.heapsnapshot
+
+# ──────────────────────────────────────────────
+# Notes & Plans
+# ──────────────────────────────────────────────
+docs/superpowers/

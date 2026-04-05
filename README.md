@@ -1,28 +1,80 @@
 [English](README.md) | [中文](README_CN.md)
 
-# Claude Code — Source Architecture Deep Dive
+# CLaudeClone (OPENSOURCE) — Multi-Provider AI Coding Assistant
 
-> A comprehensive architectural analysis of Anthropic's official CLI coding assistant
+> A comprehensive architectural analysis of the open-source CLaudeClone AI coding assistant
 
 ![Preview](preview.png)
 
-This repository is a restored Claude Code source tree reconstructed primarily from source maps and missing-module backfilling. It is not the original upstream repository state. Some files were unrecoverable from source maps and have been replaced with compatibility shims or degraded implementations so the project can install and run again.
+This repository is a restored CLaudeClone source tree, a fork of Anthropic's official CLI coding assistant, reconstructed primarily from source maps and missing-module backfilling. It is not the original upstream repository state. Some files were unrecoverable from source maps and have been replaced with compatibility shims or degraded implementations so the project can install and run again.
 
 ## Quick Start
 
-Requirements:
+### Prerequisites
 
-- Bun 1.3.5 or newer
-- Node.js 24 or newer
+- Bun 1.3.5 or newer (install: https://bun.sh)
+- Node.js 24 or newer (for native module compatibility)
+- Git (for repository operations)
+
+### Installation
+
+After cloning the repository:
 
 ```bash
 bun install
+```
+
+### Running CLaudeClone
+
+**Option 1: Direct CLI command (recommended)**
+
+Once installed, you can run CLaudeClone directly using the `claude` binary:
+
+```bash
+# First-party Anthropic API (default)
+export ANTHROPIC_API_KEY=your-api-key
+claude
+
+# AWS Bedrock
+export CLAUDE_CODE_USE_BEDROCK=true
+export AWS_REGION=us-east-1
+# AWS credentials configured via aws-sdk defaults (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+claude
+
+# Google Vertex AI
+export CLAUDE_CODE_USE_VERTEX=true
+export ANTHROPIC_VERTEX_PROJECT_ID=your-project-id
+# GCP credentials configured via google-auth-library (GOOGLE_APPLICATION_CREDENTIALS or gcloud)
+claude
+
+# Azure Foundry
+export CLAUDE_CODE_USE_FOUNDRY=true
+export ANTHROPIC_FOUNDRY_RESOURCE=your-resource-name
+# Authentication: ANTHROPIC_FOUNDRY_API_KEY or Azure AD (DefaultAzureCredential)
+claude
+
+# Custom Provider (OpenAI compatible: DeepSeek, NVIDIA, Ollama, etc.)
+export CLAUDE_CODE_USE_CUSTOM=true
+export CUSTOM_API_KEY=your-api-key
+export CUSTOM_BASE_URL=https://api.your-provider.com/v1
+claude
+```
+
+**Option 2: Development mode**
+
+```bash
 bun run dev
 ```
 
-Print the restored version:
+> **Note:** The `claude` binary becomes available after `bun install`. You can also invoke it via `bun run claude` if the binary isn't in your PATH.
+
+### Version Information
+
+Print the current version:
 
 ```bash
+claude --version
+# or
 bun run version
 ```
 
@@ -37,6 +89,151 @@ Claude Code is Anthropic's command-line AI coding assistant. Users interact with
 | **Headless/SDK**      | Unattended mode for automation pipelines and Agent SDK integration       |
 | **Bridge/Remote**     | Remote control mode, orchestrated from claude.ai web UI                  |
 | **Assistant Daemon**  | Background daemon process                                                |
+
+## Multi-Provider Architecture
+
+CLaudeClone supports multiple LLM providers through a unified abstraction layer. The `APIProvider` type defines six provider options:
+
+| Provider   | Environment Variable           | Description                                                              |
+| ---------- | ------------------------------ | ------------------------------------------------------------------------ |
+| `firstParty` | *(default)*                 | Anthropic's first-party API (api.anthropic.com)                         |
+| `bedrock`   | `CLAUDE_CODE_USE_BEDROCK`    | AWS Bedrock (requires AWS credentials)                                  |
+| `vertex`    | `CLAUDE_CODE_USE_VERTEX`     | Google Cloud Vertex AI (requires GCP project ID)                        |
+| `foundry`   | `CLAUDE_CODE_USE_FOUNDRY`    | Azure AI Foundry (requires Azure resource/API key)                      |
+| `custom`    | `CLAUDE_CODE_USE_CUSTOM`     | Custom API (requires custom base URL/API key)                           |
+
+**Provider detection** is automatic based on environment variables. The system selects exactly one provider at runtime, with `firstParty` as the default when no provider-specific variable is set.
+
+**Benefits of multi-provider support:**
+
+- **Flexibility**: Choose the provider that best fits your workflow, budget, or compliance requirements
+- **Regional availability**: Access Claude models in different cloud regions (AWS, GCP, Azure)
+- **Cost optimization**: Compare pricing across providers and select the most economical option
+- **Enterprise integration**: Use existing cloud provider credentials and IAM setups
+- **Model consistency**: The same Claude models (with provider-specific identifiers) are available across all platforms
+
+The abstraction layer handles:
+- Provider-specific SDK initialization (`@anthropic-ai/sdk` for first-party, `@anthropic-ai/bedrock-sdk`, `@anthropic-ai/vertex-sdk`, `@anthropic-ai/foundry-sdk`; generic endpoints for custom providers)
+- Automatic translation of model identifiers (e.g., `claude-opus-4-6` → `us.anthropic.claude-opus-4-6-v1` for Bedrock)
+- Region and credential management
+- Uniform error handling and retry logic
+
+---
+
+## Provider Configuration
+
+Detailed environment variable reference for each provider:
+
+### Common Configuration
+
+| Variable | Description |
+| -------- | ----------- |
+| `ANTHROPIC_MODEL` | Default model to use (overrides built-in defaults) |
+| `ANTHROPIC_API_KEY` | First-party API key (when not using OAuth) |
+| `ANTHROPIC_BASE_URL` | Custom API base URL (for first-party or compatible endpoints) |
+| `ANTHROPIC_CUSTOM_HEADERS` | Additional headers to send with API requests (one per line, "Name: Value" format) |
+
+### AWS Bedrock
+
+| Variable | Description |
+| -------- | ----------- |
+| `CLAUDE_CODE_USE_BEDROCK` | Set to `true` to enable Bedrock provider |
+| `AWS_REGION` or `AWS_DEFAULT_REGION` | AWS region for all models (default: `us-east-1`) |
+| `ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION` | Optional region override specifically for the small fast model (Haiku) |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Standard AWS credentials (alternatively use profile-based auth) |
+| `AWS_BEARER_TOKEN_BEDROCK` | Optional bearer token for Bedrock API key authentication |
+| `CLAUDE_CODE_SKIP_BEDROCK_AUTH` | Skip AWS credential loading (for testing/proxy scenarios) |
+
+**Authentication:** Uses standard AWS SDK credential chain. Supports environment variables, `~/.aws/credentials` profiles, EC2/ECS IAM roles, and `DefaultAzureCredential` for Azure-hosted workloads.
+
+### Google Cloud Vertex AI
+
+| Variable | Description |
+| -------- | ----------- |
+| `CLAUDE_CODE_USE_VERTEX` | Set to `true` to enable Vertex provider |
+| `ANTHROPIC_VERTEX_PROJECT_ID` | **Required.** Your GCP project ID |
+| `VERTEX_REGION_CLAUDE_3_5_HAIKU` | Region for Claude 3.5 Haiku (e.g., `us-central1`) |
+| `VERTEX_REGION_CLAUDE_HAIKU_4_5` | Region for Claude Haiku 4.5 |
+| `VERTEX_REGION_CLAUDE_3_5_SONNET` | Region for Claude 3.5 Sonnet |
+| `VERTEX_REGION_CLAUDE_3_7_SONNET` | Region for Claude 3.7 Sonnet |
+| `CLOUD_ML_REGION` | Default region for any model without a specific override |
+| `CLAUDE_CODE_SKIP_VERTEX_AUTH` | Skip GCP credential loading (for testing/proxy scenarios) |
+
+**Region fallback order:** 1) Model-specific env var, 2) `CLOUD_ML_REGION`, 3) SDK default, 4) `us-east5`. Credentials use `google-auth-library` ADC (Application Default Credentials).
+
+### Azure AI Foundry
+
+| Variable | Description |
+| -------- | ----------- |
+| `CLAUDE_CODE_USE_FOUNDRY` | Set to `true` to enable Foundry provider |
+| `ANTHROPIC_FOUNDRY_RESOURCE` | Azure resource name (constructs endpoint: `https://{resource}.services.ai.azure.com/anthropic/v1`) |
+| `ANTHROPIC_FOUNDRY_BASE_URL` | Alternative: provide full base URL directly |
+| `ANTHROPIC_FOUNDRY_API_KEY` | API key for authentication (if not using Azure AD) |
+| `CLAUDE_CODE_SKIP_FOUNDRY_AUTH` | Skip Azure AD authentication (for testing/proxy scenarios) |
+
+**Authentication:** If `ANTHROPIC_FOUNDRY_API_KEY` is set, uses API key auth. Otherwise uses `@azure/identity` `DefaultAzureCredential` (supports env vars, managed identity, Azure CLI, Visual Studio Code, etc.).
+
+### Custom Provider (Generic)
+
+| Variable | Description |
+| -------- | ----------- |
+| `CLAUDE_CODE_USE_CUSTOM` | Set to `true` to enable custom provider (e.g. DeepSeek, NVIDIA, Ollama) |
+| `CUSTOM_API_KEY` | **Required.** Custom API key |
+| `CUSTOM_BASE_URL` | API endpoint (e.g. `https://api.deepseek.com/v1` or `http://localhost:11434/v1`) |
+| `CUSTOM_MODEL` | Override model ID for custom deployment |
+
+---
+
+## Model Abstraction System
+
+The model abstraction layer (`src/utils/model/`) provides a unified interface for working with models across all providers. It handles model resolution, display names, aliases, and provider-specific ID translation.
+
+### Core Modules
+
+| Module | Purpose |
+| ------ | ------- |
+| `providers.ts` | Provider detection utilities (`getAPIProvider()`, `isFirstPartyAnthropicBaseUrl()`) |
+| `configs.ts` | Provider-specific model ID mappings for all supported Claude models |
+| `model.ts` | Model resolution, aliases (`opus`, `sonnet`, `haiku`, `best`, `opusplan`), display rendering, 1M context handling |
+| `modelStrings.ts` | Canonical model name constants (e.g., `opus46`, `sonnet46`, `haiku45`) |
+| `modelAllowlist.ts` | Controls which models are available to users |
+| `validateModel.ts` | Validates model names and configurations |
+
+### Model Selection Priority
+
+1. **Session override** (`/model` command) — highest priority
+2. **Startup flag** (`--model` CLI argument)
+3. **Environment variable** (`ANTHROPIC_MODEL`)
+4. **Saved settings** (user configuration file)
+5. **Built-in default** (based on subscription tier and provider)
+
+### Model Aliases
+
+| Alias | Resolves To | Description |
+| ----- | ----------- | ----------- |
+| `opus` | Latest Opus model | Most capable for complex tasks |
+| `sonnet` | Latest Sonnet model | Balanced performance (default for most users) |
+| `haiku` | Latest Haiku model | Fast, economical for simple tasks |
+| `best` | Latest Opus model | Synonym for `opus` |
+| `opusplan` | Sonnet normally, Opus in plan mode | Smart default for plan/execution workflow |
+
+All aliases support the `[1m]` suffix (e.g., `haiku[1m]`, `sonnet[1m]`) to enable 1M context window on models that support it.
+
+### Model ID Mapping
+
+The `configs.ts` module defines `ModelConfig` objects that map canonical model keys to provider-specific IDs:
+
+```typescript
+export const CLAUDE_OPUS_4_6_CONFIG = {
+  firstParty: 'claude-opus-4-6',
+  bedrock: 'us.anthropic.claude-opus-4-6-v1',
+  vertex: 'claude-opus-4-6',
+  foundry: 'claude-opus-4-6',
+  custom: 'claude-opus-4-6',
+} as const satisfies ModelConfig
+```
+
+At runtime, `getMainLoopModel()` resolves the user's model selection (which may be an alias or canonical name) to the exact model ID required by the active provider. This means users can select "Sonnet" and the system automatically uses the correct identifier for their chosen provider (Bedrock ARN, Vertex model name, etc.).
 
 ---
 
@@ -64,7 +261,18 @@ src/
 ├── tools/                 # Tool implementations (~43)
 ├── services/              # Backend service integrations (~38)
 ├── hooks/                 # React Hooks (~87)
-├── utils/                 # Utility functions (~331)
+├── utils/
+│   ├── model/             # Multi-provider model abstraction (~10 files)
+│   │   ├── configs.ts     # Provider-specific model ID mappings
+│   │   ├── model.ts       # Model resolution & display
+│   │   ├── providers.ts   # Provider detection
+│   │   ├── modelStrings.ts
+│   │   ├── modelAllowlist.ts
+│   │   ├── modelCapabilities.ts
+│   │   ├── modelOptions.ts
+│   │   ├── validateModel.ts
+│   │   └── ...
+│   └── ...                # Other utility functions (~331 total)
 ├── ink/                   # Custom terminal rendering engine
 ├── bridge/                # Remote control / Bridge mode
 ├── vim/                   # Vim emulator
@@ -144,8 +352,8 @@ User Input → Build Messages → Call Anthropic API (streaming) → Parse Respo
     ← ← ← ← ← ← ← Tool Results ← ← ← ← ← ← ← ← ← ← ← Tool Use detected?
                                           ↓ No                      ↓ Yes
                                       Output to user          Route to Tool
-                                                                  ↓
-                                                          Execute & collect result
+                                                                   ↓
+                                                           Execute & collect result
 ```
 
 Key responsibilities:
@@ -197,6 +405,40 @@ Coordination mechanisms:
 - SendMessage tool (cross-agent interaction)
 ```
 
+### 7. Multi-Provider Client System
+
+The API client factory (`src/services/api/client.ts`) dynamically creates the appropriate Anthropic SDK based on the active provider:
+
+```typescript
+export async function getAnthropicClient(params): Promise<Anthropic> {
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)) {
+    const { AnthropicBedrock } = await import('@anthropic-ai/bedrock-sdk')
+    return new AnthropicBedrock(bedrockArgs)
+  }
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX)) {
+    const [{ AnthropicVertex }, { GoogleAuth }] = await Promise.all([
+      import('@anthropic-ai/vertex-sdk'),
+      import('google-auth-library')
+    ])
+    return new AnthropicVertex(vertexArgs)
+  }
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_FOUNDRY)) {
+    const { AnthropicFoundry } = await import('@anthropic-ai/foundry-sdk')
+    return new AnthropicFoundry(foundryArgs)
+  }
+  // ... nvidia, deepseek, firstParty
+}
+```
+
+**Provider-specific authentication** is handled transparently:
+- **Bedrock**: AWS SDK credential chain (env vars, profiles, IAM roles)
+- **Vertex**: Google Application Default Credentials with project resolution
+- **Foundry**: API key or Azure AD `DefaultAzureCredential`
+- **Custom**: Direct API key to custom base URL
+- **First-party**: OAuth tokens or direct API key
+
+**Model ID translation** ensures each provider receives the correctly formatted identifier. The model abstraction layer (`src/utils/model/`) resolves user-friendly names to provider-specific ARNs, model IDs, or deployment names automatically.
+
 ---
 
 ## Technology Stack
@@ -211,6 +453,7 @@ Coordination mechanisms:
 | **Commander.js**   | CLI argument parsing (`@commander-js/extra-typings`)                 |
 | **Biome**          | Linting and formatting                                               |
 | **Build Macros**   | `MACRO.VERSION` injection, `feature()` feature gating                |
+| **Provider Abstraction** | Unified configuration layer for 6+ LLM providers with automatic model ID translation |
 
 ### UI Rendering
 
@@ -227,7 +470,8 @@ Built on a heavily customized **Ink** (React-for-terminal) engine (`ink/` direct
 - **Anthropic SDK** (`@anthropic-ai/sdk`) with streaming
 - Extended Thinking support
 - Multi-model: Sonnet / Opus / Haiku families
-- AWS Bedrock / GCP Vertex AI proxies
+- **Multi-provider support**: firstParty, AWS Bedrock, Google Vertex AI, Azure Foundry, Custom (Generic)
+- Provider-specific SDKs: `@anthropic-ai/bedrock-sdk`, `@anthropic-ai/vertex-sdk`, `@anthropic-ai/foundry-sdk`
 - Token budget management and cost tracking
 
 ### MCP (Model Context Protocol)
@@ -359,6 +603,16 @@ Execution flow: Tool.call() → Permission check → User confirmation (if neede
 │                    │ (Ink)    │  │               │    │
 │                    └──────────┘  └──────────────┘    │
 └──────────────────────────────────────────────────────┘
+                         │
+                         │ (Provider selection based on env)
+                         ↓
+          ┌────────────────────────────────────────────┐
+          │     Client Factory (getAnthropicClient)   │
+          │  ┌────────────┬──────────┬─────────────┐ │
+          │  │  First-    │  Bedrock │   Vertex    │ │
+          │  │  Party SDk │   SDK    │    SDK       │ │
+          │  └────────────┴──────────┴─────────────┘ │
+          └────────────────────────────────────────────┘
 ```
 
 ---

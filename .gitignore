@@ -1,18 +1,67 @@
-.DS_Store
+# File updated: 2026-04-05T02:36:00-04:00 (EST)
+# Author: Antigravity Agent – Ariel's Workspace
 
+# ──────────────────────────────────────────────
+# OS-generated files
+# ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+ehthumbs_vista.db
+
+# ──────────────────────────────────────────────
+# Dependencies
+# ──────────────────────────────────────────────
 node_modules/
 
+# ──────────────────────────────────────────────
+# Build output
+# ──────────────────────────────────────────────
 dist/
 build/
+out/
+.next/
 coverage/
 .cache/
 .turbo/
 
+# ──────────────────────────────────────────────
+# Environment & secrets
+# ──────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ──────────────────────────────────────────────
+# Logs & temp files
+# ──────────────────────────────────────────────
 *.log
 *.tmp
 *.swp
 *.swo
+*~
 
-.claude/
+# ──────────────────────────────────────────────
+# Editor / IDE configs
+# ──────────────────────────────────────────────
 .idea/
 .vscode/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# ──────────────────────────────────────────────
+# AI / agent directories
+# ──────────────────────────────────────────────
+.claude/
+.gemini/
+.agents/
+.agent/
+
+# ──────────────────────────────────────────────
+# Debug & profiling
+# ──────────────────────────────────────────────
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot

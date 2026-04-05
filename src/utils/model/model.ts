@@ -66,7 +66,16 @@ export function getUserSpecifiedModelSetting(): ModelSetting | undefined {
     specifiedModel = modelOverride
   } else {
     const settings = getSettings_DEPRECATED() || {}
-    specifiedModel = process.env.ANTHROPIC_MODEL || settings.model || undefined
+    specifiedModel =
+      (isEnvTruthy(process.env.CLAUDE_CODE_USE_NVIDIA)
+        ? process.env.NVIDIA_MODEL
+        : undefined) ||
+      (isEnvTruthy(process.env.CLAUDE_CODE_USE_DEEPSEEK)
+        ? process.env.DEEPSEEK_MODEL
+        : undefined) ||
+      process.env.ANTHROPIC_MODEL ||
+      settings.model ||
+      undefined
   }
 
   // Ignore the user-specified model if it's not in the availableModels allowlist.

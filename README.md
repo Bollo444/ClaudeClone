@@ -28,36 +28,36 @@ bun install
 
 **Option 1: Direct CLI command (recommended)**
 
-Once installed, you can run CLaudeClone directly using the `claude` binary:
+Once installed, you can run CLaudeClone directly using the `claudeclone` binary:
 
 ```bash
 # First-party Anthropic API (default)
 export ANTHROPIC_API_KEY=your-api-key
-claude
+claudeclone
 
 # AWS Bedrock
 export CLAUDE_CODE_USE_BEDROCK=true
 export AWS_REGION=us-east-1
 # AWS credentials configured via aws-sdk defaults (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-claude
+claudeclone
 
 # Google Vertex AI
 export CLAUDE_CODE_USE_VERTEX=true
 export ANTHROPIC_VERTEX_PROJECT_ID=your-project-id
 # GCP credentials configured via google-auth-library (GOOGLE_APPLICATION_CREDENTIALS or gcloud)
-claude
+claudeclone
 
 # Azure Foundry
 export CLAUDE_CODE_USE_FOUNDRY=true
 export ANTHROPIC_FOUNDRY_RESOURCE=your-resource-name
 # Authentication: ANTHROPIC_FOUNDRY_API_KEY or Azure AD (DefaultAzureCredential)
-claude
+claudeclone
 
 # Custom Provider (OpenAI compatible: DeepSeek, NVIDIA, Ollama, etc.)
 export CLAUDE_CODE_USE_CUSTOM=true
 export CUSTOM_API_KEY=your-api-key
 export CUSTOM_BASE_URL=https://api.your-provider.com/v1
-claude
+claudeclone
 ```
 
 **Option 2: Development mode**
@@ -66,14 +66,14 @@ claude
 bun run dev
 ```
 
-> **Note:** The `claude` binary becomes available after `bun install`. You can also invoke it via `bun run claude` if the binary isn't in your PATH.
+> **Note:** The `claudeclone` binary becomes available after `bun install`. You can also invoke it via `npx claudeclone` if it is linked or published.
 
 ### Version Information
 
 Print the current version:
 
 ```bash
-claude --version
+claudeclone --version
 # or
 bun run version
 ```

@@ -15,7 +15,7 @@
     "node": ">=24.0.0"
   },
   "bin": {
-    "claude": "./src/entrypoints/cli.tsx"
+    "claudeclone": "./src/entrypoints/cli.tsx"
   },
   "scripts": {
     "dev": "bun run ./src/dev-entry.ts",

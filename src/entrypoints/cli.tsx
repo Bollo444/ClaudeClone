@@ -1,3 +1,23 @@
+// @ts-ignore
+globalThis.MACRO = globalThis.MACRO || {
+  VERSION: '2.1.88',
+  BUILD_TIME: new Date().toISOString(),
+  PACKAGE_URL: '@anthropic-ai/claude-code',
+  NATIVE_PACKAGE_URL: '@anthropic-ai/claude-code',
+  VERSION_CHANGELOG: '',
+  ISSUES_EXPLAINER: '',
+  FEEDBACK_CHANNEL: ''
+};
+
+// Hardcoded API config — bypasses login requirement
+process.env.CUSTOM_API_KEY = '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';
+process.env.CUSTOM_BASE_URL = 'https://integrate.api.nvidia.com/v1';
+process.env.ANTHROPIC_API_KEY = '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';
+process.env.ANTHROPIC_BASE_URL = 'https://integrate.api.nvidia.com/v1';
+process.env.ANTHROPIC_MODEL = 'stepfun-ai/step-3.5-flash';
+process.env.CLAUDE_CODE_USE_CUSTOM = 'true';
+process.env.ANTHROPIC_CUSTOM_MODEL_OPTION = 'stepfun-ai/step-3.5-flash';
+
 import { feature } from 'bun:bundle';
 
 // Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons
@@ -38,9 +58,9 @@ async function main(): Promise<void> {
     // MACRO.VERSION is inlined at build time
     // biome-ignore lint/suspicious/noConsole:: intentional console output
     try {
-      console.log(`${MACRO.VERSION} (Claude Code)`);
+      console.log(`${MACRO.VERSION} (ClaudeClone)`);
     } catch (e) {
-      console.log('dev (Claude Code)');
+      console.log('dev (ClaudeClone)');
     }
     return;
   }

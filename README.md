@@ -59,7 +59,40 @@ claudeclone
 export CLAUDE_CODE_USE_CUSTOM=true
 export CUSTOM_API_KEY=your-api-key
 export CUSTOM_BASE_URL=https://api.your-provider.com/v1
+export ANTHROPIC_MODEL=your-model-id
 claudeclone
+```
+
+#### Quick Hardcode Setup (skip manual config entirely)
+
+If the manual config/onboarding gives trouble, you can hardcode your provider credentials directly in the entry point. Edit `src/entrypoints/cli.tsx` and add these lines **after** the `globalThis.MACRO` block (before the `import` statement):
+
+```typescript
+// Hardcoded API config — bypasses login requirement
+process.env.CUSTOM_API_KEY = 'your-api-key';
+process.env.CUSTOM_BASE_URL = 'https://your-provider.com/v1';
+process.env.ANTHROPIC_API_KEY = 'your-api-key';
+process.env.ANTHROPIC_BASE_URL = 'https://your-provider.com/v1';
+process.env.ANTHROPIC_MODEL = 'your-model-id';
+process.env.CLAUDE_CODE_USE_CUSTOM = 'true';
+process.env.ANTHROPIC_CUSTOM_MODEL_OPTION = 'your-model-id';
+```
+
+Also set your display name in `~/.claude.json`:
+```bash
+python3 -c "
+import json
+with open('$HOME/.claude.json', 'r') as f:
+    config = json.load(f)
+config['oauthAccount'] = {'displayName': 'YourName', 'accountUuid': 'you', 'emailAddress': 'you@example.com'}
+with open('$HOME/.claude.json', 'w') as f:
+    json.dump(config, f, indent=2)
+"
+```
+
+Then run:
+```bash
+bun run ./src/entrypoints/cli.tsx
 ```
 
 **Option 2: Development mode**
@@ -182,7 +215,9 @@ Detailed environment variable reference for each provider:
 | `CLAUDE_CODE_USE_CUSTOM` | Set to `true` to enable custom provider (e.g. DeepSeek, NVIDIA, Ollama) |
 | `CUSTOM_API_KEY` | **Required.** Custom API key |
 | `CUSTOM_BASE_URL` | API endpoint (e.g. `https://api.deepseek.com/v1` or `http://localhost:11434/v1`) |
-| `CUSTOM_MODEL` | Override model ID for custom deployment |
+| `ANTHROPIC_MODEL` | Model to use (e.g. `stepfun-ai/step-3.5-flash`, `google/gemma-4-31b-it`) |
+
+**OpenAI-Compatible Translation Layer:** When `CLAUDE_CODE_USE_CUSTOM` is enabled, this local fork routes requests through an **OpenAI-compatible translation layer** (`src/services/api/AnthropicOpenAICompat.ts`). This means custom providers that use the OpenAI API format (NVIDIA NIM, DeepSeek, Ollama, OpenRouter, etc.) work seamlessly — the layer translates Anthropic-format requests into OpenAI-format requests and translates responses back, so the rest of ClaudeClone operates unchanged. This is an extension beyond the upstream which passes custom providers directly to the Anthropic SDK (requiring Anthropic-compatible endpoints).
 
 ---
 
@@ -257,11 +292,18 @@ src/
 ├── interactiveHelpers.tsx # Interactive helper components
 │
 ├── entrypoints/           # Application entry points
+│   ├── cli.tsx            # Main production entry point
+│   ├── cli-dev.tsx        # Development entry (dev-only flags)
+│   └── sandboxTypes.ts    # Sandbox type definitions
 ├── screens/               # Top-level screens (REPL, Doctor, Resume)
 ├── components/            # React/Ink UI components (~146 files)
 ├── commands/              # Slash command implementations (~60+)
+│   └── api-config/        # API provider configuration UI (local addition)
 ├── tools/                 # Tool implementations (~43)
 ├── services/              # Backend service integrations (~38)
+│   └── api/
+│       ├── client.ts      # API client factory (multi-provider)
+│       └── AnthropicOpenAICompat.ts  # OpenAI→Anthropic translation layer ★
 ├── hooks/                 # React Hooks (~87)
 ├── utils/
 │   ├── model/             # Multi-provider model abstraction (~10 files)
@@ -409,7 +451,7 @@ Coordination mechanisms:
 
 ### 7. Multi-Provider Client System
 
-The API client factory (`src/services/api/client.ts`) dynamically creates the appropriate Anthropic SDK based on the active provider:
+The API client factory (`src/services/api/client.ts`) dynamically creates the appropriate SDK client based on the active provider:
 
 ```typescript
 export async function getAnthropicClient(params): Promise<Anthropic> {
@@ -428,9 +470,23 @@ export async function getAnthropicClient(params): Promise<Anthropic> {
     const { AnthropicFoundry } = await import('@anthropic-ai/foundry-sdk')
     return new AnthropicFoundry(foundryArgs)
   }
-  // ... nvidia, deepseek, firstParty
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_CUSTOM)) {
+    // Local addition: OpenAI-compatible translation layer for non-Anthropic providers
+    const { AnthropicOpenAICompat } = await import('./AnthropicOpenAICompat.js')
+    return new AnthropicOpenAICompat({ apiKey, baseURL })
+  }
+  // ... firstParty
 }
 ```
+
+**OpenAI-Compatible Translation Layer** (`AnthropicOpenAICompat.ts` — local addition):
+When the custom provider is enabled, this fork wraps the OpenAI SDK to produce Anthropic-compatible stream events. This allows any OpenAI-format API (NVIDIA NIM, DeepSeek, Ollama, OpenRouter, etc.) to work as a drop-in backend. The translation layer handles:
+- **Message translation**: Anthropic `content` blocks → OpenAI `messages` array
+- **Streaming**: OpenAI SSE chunks → Anthropic `BetaRawMessageStreamEvent` events
+- **Response mapping**: OpenAI `ChatCompletion` → Anthropic `Message` format
+- **StreamController**: Matches the Anthropic SDK's Stream API (`.withResponse()`, `.next()`, async iterator)
+
+This is the key architectural difference from upstream, which passes custom providers directly to the Anthropic SDK (requiring Anthropic-compatible endpoints).
 
 **Provider-specific authentication** is handled transparently:
 - **Bedrock**: AWS SDK credential chain (env vars, profiles, IAM roles)
@@ -474,6 +530,7 @@ Built on a heavily customized **Ink** (React-for-terminal) engine (`ink/` direct
 - Multi-model: Sonnet / Opus / Haiku families
 - **Multi-provider support**: firstParty, AWS Bedrock, Google Vertex AI, Azure Foundry, Custom (Generic)
 - Provider-specific SDKs: `@anthropic-ai/bedrock-sdk`, `@anthropic-ai/vertex-sdk`, `@anthropic-ai/foundry-sdk`
+- **OpenAI-compatible translation layer** (`AnthropicOpenAICompat.ts`) — wraps `openai` SDK to support any OpenAI-format provider (NVIDIA NIM, DeepSeek, Ollama, etc.) as a custom backend
 - Token budget management and cost tracking
 
 ### MCP (Model Context Protocol)
@@ -631,6 +688,45 @@ Execution flow: Tool.call() → Permission check → User confirmation (if neede
 | `services/`     | ~38    | Backend services                    |
 | `ink/`          | ~50    | Terminal rendering engine           |
 | `bridge/`       | ~33    | Bridge mode                         |
+
+---
+
+## Local Additions (vs. Upstream Bollo444/ClaudeClone)
+
+This fork extends the upstream [Bollo444/ClaudeClone](https://github.com/Bollo444/ClaudeClone) with the following additions:
+
+### OpenAI-Compatible Custom Provider Layer
+
+The upstream passes custom providers directly to the Anthropic SDK, requiring Anthropic-compatible endpoints. This fork adds an **OpenAI-compatible translation layer** (`src/services/api/AnthropicOpenAICompat.ts`) that:
+
+- Wraps the `openai` SDK (`openai@^6.33.0` dependency)
+- Translates Anthropic-format messages → OpenAI `messages` array
+- Translates OpenAI streaming chunks → Anthropic `BetaRawMessageStreamEvent` events
+- Implements a `StreamController` class matching the Anthropic SDK's Stream API (`.withResponse()`, `.next()`, async iterator)
+- Returns the stream synchronously from `create()` so `.withResponse()` is available immediately (matching SDK behavior)
+- Lazily initiates the API call on first iteration (matching SDK lazy-fetch pattern)
+
+This enables any OpenAI-format provider (NVIDIA NIM, DeepSeek, Ollama, OpenRouter, etc.) to work as a drop-in backend without requiring Anthropic-compatible endpoints.
+
+### API Configuration Commands
+
+A new `src/commands/api-config/` directory provides interactive API provider configuration:
+- `apiConfig.tsx` — React/Ink panel for selecting providers, entering API keys, base URLs, and models
+- `index.ts` — Command registration
+
+### Development Entry Points
+
+- `src/entrypoints/cli-dev.tsx` — Development-specific entry with debug flags
+- `src/entrypoints/claudeclone` — Shell script wrapper for direct `bun run` execution
+- `src/dev-entry.ts` — Simplified dev bootstrap script
+
+### Model Override Fix
+
+Fixed a bug in `getUserSpecifiedModelSetting()` where `mainLoopModelOverride` being `null` (the startup default) was treated as a valid override, blocking `ANTHROPIC_MODEL` env var from being checked.
+
+### API Key Verification Bypass
+
+The `useApiKeyVerification()` hook is simplified to always return `'valid'` status, preventing "Not logged in · Run /login" errors when using non-Anthropic providers that don't support the standard Anthropic auth flow.
 
 ---
 

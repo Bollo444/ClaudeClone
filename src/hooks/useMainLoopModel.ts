@@ -1,6 +1,7 @@
 import { useEffect, useReducer } from 'react'
 import { onGrowthBookRefresh } from '../services/analytics/growthbook.js'
 import { useAppState } from '../state/AppState.js'
+import { isEnvTruthy } from '../utils/envUtils.js'
 import {
   getDefaultMainLoopModelSetting,
   type ModelName,
@@ -25,10 +26,18 @@ export function useMainLoopModel(): ModelName {
   const [, forceRerender] = useReducer(x => x + 1, 0)
   useEffect(() => onGrowthBookRefresh(forceRerender), [])
 
-  const model = parseUserSpecifiedModel(
+  // Fall back to ANTHROPIC_MODEL env var when AppState hasn't been set
+  // (e.g., custom provider with hardcoded model that's not Anthropic format)
+  const envModel = isEnvTruthy(process.env.CLAUDE_CODE_USE_NVIDIA)
+    ? process.env.NVIDIA_MODEL
+    : undefined
+  const effectiveModel =
     mainLoopModelForSession ??
-      mainLoopModel ??
-      getDefaultMainLoopModelSetting(),
-  )
+    mainLoopModel ??
+    envModel ??
+    process.env.ANTHROPIC_MODEL ??
+    getDefaultMainLoopModelSetting()
+
+  const model = parseUserSpecifiedModel(effectiveModel)
   return model
 }

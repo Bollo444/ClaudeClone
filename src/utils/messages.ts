@@ -235,7 +235,7 @@ export function AUTO_REJECT_MESSAGE(toolName: string): string {
   return `Permission to use ${toolName} has been denied. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export function DONT_ASK_REJECT_MESSAGE(toolName: string): string {
-  return `Permission to use ${toolName} has been denied because Claude Code is running in don't ask mode. ${DENIAL_WORKAROUND_GUIDANCE}`
+  return `Permission to use ${toolName} has been denied because ClaudeClone is running in don't ask mode. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export const NO_RESPONSE_REQUESTED = 'No response requested.'
 
@@ -4429,6 +4429,7 @@ export function createTurnDurationMessage(
   durationMs: number,
   budget?: { tokens: number; limit: number; nudges: number },
   messageCount?: number,
+  totalOutputTokens?: number,
 ): SystemTurnDurationMessage {
   return {
     type: 'system',
@@ -4438,6 +4439,7 @@ export function createTurnDurationMessage(
     budgetLimit: budget?.limit,
     budgetNudges: budget?.nudges,
     messageCount,
+    totalOutputTokens,
     timestamp: new Date().toISOString(),
     uuid: randomUUID(),
     isMeta: false,

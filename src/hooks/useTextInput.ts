@@ -10,9 +10,7 @@ import type {
 } from '../types/textInputTypes.js'
 import {
   Cursor,
-  getLastKill,
   pushToKillRing,
-  recordYank,
   resetKillAccumulation,
   resetYankState,
   updateYankLength,
@@ -195,17 +193,6 @@ export function useTextInput({
     return newCursor
   }
 
-  function yank(): Cursor {
-    const text = getLastKill()
-    if (text.length > 0) {
-      const startOffset = cursor.offset
-      const newCursor = cursor.insert(text)
-      recordYank(startOffset, text.length)
-      return newCursor
-    }
-    return cursor
-  }
-
   function handleYankPop(): Cursor {
     const popResult = yankPop()
     if (!popResult) {
@@ -234,7 +221,9 @@ export function useTextInput({
     ['p', () => upOrHistoryUp()],
     ['u', killToLineStart],
     ['w', killWordBefore],
-    ['y', yank],
+    // Ctrl+Y removed: conflicts with YOLO mode toggle (ctrl+y).
+    // The yank functionality is still accessible via the global useInput
+    // handler in PromptInputFooterLeftSide when YOLO mode is not needed.
   ])
 
   const handleMeta = mapInput([
@@ -423,7 +412,9 @@ export function useTextInput({
     return false
   }
 
-  // Check if this is a yank command (Ctrl+Y or Alt+Y)
+  // Check if this is a yank-related key (Meta+Y for yank-pop, or legacy Ctrl+Y).
+  // Ctrl+Y itself no longer performs yank (freed for YOLO mode toggle), but we
+  // still track it here for yank state management.
   function isYankKey(key: Key, input: string): boolean {
     return (key.ctrl || key.meta) && input === 'y'
   }

@@ -297,13 +297,11 @@ export async function getAnthropicClient({
     return new AnthropicVertex(vertexArgs) as unknown as Anthropic
   }
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_CUSTOM)) {
-    const customConfig: ConstructorParameters<typeof Anthropic>[0] = {
-      ...ARGS,
+    const { AnthropicOpenAICompat } = await import('./AnthropicOpenAICompat.js')
+    return new AnthropicOpenAICompat({
       apiKey: process.env.CUSTOM_API_KEY || apiKey || getAnthropicApiKey(),
       baseURL: process.env.CUSTOM_BASE_URL,
-      ...(isDebugToStdErr() && { logger: createStderrLogger() }),
-    }
-    return new Anthropic(customConfig)
+    }) as unknown as Anthropic
   }
 
   // Determine authentication method based on available tokens

@@ -553,7 +553,9 @@ function TurnDurationMessage(t0) {
     t4 = `${showTurnDuration ? " \xB7 " : ""}${usage}${nudges}`;
   }
   const budgetSuffix = t4;
-  if (!showTurnDuration && !hasBudget) {
+  const totalTokens = message.totalOutputTokens;
+  const totalTokensText = totalTokens !== undefined && totalTokens > 0 ? ` \u00B7 ${formatNumber(totalTokens)} total tokens` : '';
+  if (!showTurnDuration && !hasBudget && !totalTokensText) {
     return null;
   }
   const t5 = addMargin ? 1 : 0;
@@ -567,24 +569,25 @@ function TurnDurationMessage(t0) {
   const t7 = showTurnDuration && `${verb} for ${duration}`;
   const t8 = backgroundTaskSummary && ` \u00B7 ${backgroundTaskSummary} still running`;
   let t9;
-  if ($[9] !== budgetSuffix || $[10] !== t7 || $[11] !== t8) {
-    t9 = <Text dimColor={true}>{t7}{budgetSuffix}{t8}</Text>;
+  if ($[9] !== budgetSuffix || $[10] !== t7 || $[11] !== t8 || $[12] !== totalTokensText) {
+    t9 = <Text dimColor={true}>{t7}{budgetSuffix}{totalTokensText}{t8}</Text>;
     $[9] = budgetSuffix;
     $[10] = t7;
     $[11] = t8;
-    $[12] = t9;
+    $[12] = totalTokensText;
+    $[13] = t9;
   } else {
-    t9 = $[12];
+    t9 = $[13];
   }
   let t10;
-  if ($[13] !== bg || $[14] !== t5 || $[15] !== t9) {
+  if ($[14] !== bg || $[15] !== t5 || $[16] !== t9) {
     t10 = <Box flexDirection="row" marginTop={t5} backgroundColor={bg} width="100%">{t6}{t9}</Box>;
-    $[13] = bg;
-    $[14] = t5;
-    $[15] = t9;
-    $[16] = t10;
+    $[14] = bg;
+    $[15] = t5;
+    $[16] = t9;
+    $[17] = t10;
   } else {
-    t10 = $[16];
+    t10 = $[17];
   }
   return t10;
 }

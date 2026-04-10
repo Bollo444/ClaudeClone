@@ -5,7 +5,7 @@ import { feature } from 'bun:bundle';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const coordinatorModule = feature('COORDINATOR_MODE') ? require('../../coordinator/coordinatorMode.js') as typeof import('../../coordinator/coordinatorMode.js') : undefined;
 /* eslint-enable @typescript-eslint/no-require-imports */
-import { Box, Text, Link } from '../../ink.js';
+import { Box, Text, Link, useInput } from '../../ink.js';
 import * as React from 'react';
 import figures from 'figures';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
@@ -14,6 +14,7 @@ import type { ToolPermissionContext } from '../../Tool.js';
 import { isVimModeEnabled } from './utils.js';
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js';
 import { isDefaultMode, permissionModeSymbol, permissionModeTitle, getModeColor } from '../../utils/permissions/PermissionMode.js';
+import { getSessionBypassPermissionsMode, setSessionBypassPermissionsMode, subscribeSessionBypassPermissionsMode } from '../../bootstrap/state.js';
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js';
 import { isBackgroundTask } from '../../tasks/types.js';
 import { isPanelAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js';
@@ -144,6 +145,14 @@ export function PromptInputFooterLeftSide(t0) {
     historyFailedMatch,
     onOpenTasksDialog
   } = t0;
+
+  // YOLO mode toggle: ctrl+y
+  useInput((_input, key) => {
+    if (key.ctrl && _input === 'y') {
+      setSessionBypassPermissionsMode(!getSessionBypassPermissionsMode());
+    }
+  });
+
   if (exitMessage.show) {
     let t1;
     if ($[0] !== exitMessage.key) {
@@ -345,6 +354,11 @@ function ModeIndicator({
   // the local permission mode shown here doesn't reflect the agent's state.
   // Rendered before the tasks pill so a long pill label (e.g. ultraplan URL)
   // doesn't push the mode indicator off-screen.
+  const isYoloMode = useSyncExternalStore(
+    subscribeSessionBypassPermissionsMode,
+    getSessionBypassPermissionsMode,
+    getSessionBypassPermissionsMode,
+  );
   const modePart = currentMode && hasActiveMode && !getIsRemoteMode() ? <Text color={getModeColor(currentMode)} key="mode">
         {permissionModeSymbol(currentMode)}{' '}
         {permissionModeTitle(currentMode).toLowerCase()} on
@@ -357,6 +371,17 @@ function ModeIndicator({
   // Build parts array - exclude BackgroundTaskStatus when we have teammate pills
   // (teammate pills get their own row)
   const parts = [
+  // YOLO mode toggle (display only, toggled via ctrl+y)
+  <Text
+    key="yolo-toggle"
+    color={isYoloMode ? 'error' : 'gray3'}
+  >
+    {isYoloMode ? '🔥 YOLO on' : '🛡️ YOLO off'}
+    <Text dimColor>
+      {' '}
+      <KeyboardShortcutHint shortcut="ctrl+y" action="toggle" parens />
+    </Text>
+  </Text>,
   // Remote session indicator
   ...(remoteSessionUrl ? [<Link url={remoteSessionUrl} key="remote">
             <Text color="ide">{figures.circleDouble} remote</Text>

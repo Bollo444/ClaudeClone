@@ -204,10 +204,10 @@ function SpinnerWithVerbInner({
   // a coarse 30s threshold.
   const elapsedSnapshot = pauseStartTimeRef.current !== null ? pauseStartTimeRef.current - loadingStartTimeRef.current - totalPausedMsRef.current : Date.now() - loadingStartTimeRef.current - totalPausedMsRef.current;
 
-  // Leader token count for TeammateSpinnerTree — read raw (non-animated) from
-  // the ref. The tree is only shown when teammates are running; teammate
-  // progress updates to s.tasks trigger re-renders that keep this fresh.
-  const leaderTokenCount = Math.round(responseLengthRef.current / 4);
+  // Leader token count for TeammateSpinnerTree — use real API token count,
+  // falling back to the character estimate for the animated counter.
+  const realTurnTokens = getTurnOutputTokens();
+  const leaderTokenCount = Math.max(Math.round(responseLengthRef.current / 4), realTurnTokens);
   const defaultColor: keyof Theme = 'claude';
   const defaultShimmerColor = 'claudeShimmer';
   const messageColor = overrideColor ?? defaultColor;

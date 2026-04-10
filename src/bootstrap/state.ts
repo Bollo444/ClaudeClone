@@ -966,7 +966,7 @@ export function setMeter(
     description: 'Number of git commits created',
   })
   STATE.costCounter = createCounter('claude_code.cost.usage', {
-    description: 'Cost of the Claude Code session',
+    description: 'Cost of the ClaudeClone session',
     unit: 'USD',
   })
   STATE.tokenCounter = createCounter('claude_code.token.usage', {
@@ -1261,8 +1261,15 @@ export function getUseCoworkPlugins(): boolean {
   return STATE.useCoworkPlugins
 }
 
+const sessionBypassPermissionsModeChanged = createSignal<[]>()
+
+export function subscribeSessionBypassPermissionsMode(listener: () => void): () => void {
+  return sessionBypassPermissionsModeChanged.subscribe(listener)
+}
+
 export function setSessionBypassPermissionsMode(enabled: boolean): void {
   STATE.sessionBypassPermissionsMode = enabled
+  sessionBypassPermissionsModeChanged.emit()
 }
 
 export function getSessionBypassPermissionsMode(): boolean {

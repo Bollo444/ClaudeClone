@@ -14,9 +14,10 @@ import { SpinnerGlyph } from './SpinnerGlyph.js';
 import type { SpinnerMode } from './types.js';
 import { useStalledAnimation } from './useStalledAnimation.js';
 import { interpolateColor, toRGBColor } from './utils.js';
+import { getTurnOutputTokens } from '../../bootstrap/state.js';
 const SEP_WIDTH = stringWidth(' · ');
 const THINKING_BARE_WIDTH = stringWidth('thinking');
-const SHOW_TOKENS_AFTER_MS = 30_000;
+const SHOW_TOKENS_AFTER_MS = 5_000;
 
 // Thinking shimmer constants. Previously lived in a separate ThinkingShimmerText
 // component with its own useAnimationFrame(50) — inlined here to reuse our
@@ -157,7 +158,10 @@ export function SpinnerAnimationRow({
     }
   }
   const displayedResponseLength = tokenCounterRef.current;
-  const leaderTokens = Math.round(displayedResponseLength / 4);
+
+  // === Real-time token count from API (updated each frame) ===
+  const realTurnTokens = getTurnOutputTokens();
+  const leaderTokens = Math.max(Math.round(displayedResponseLength / 4), realTurnTokens);
   const effectiveElapsedMs = hasRunningTeammates ? Math.max(elapsedTimeMs, now - turnStartRef.current) : elapsedTimeMs;
   const timerText = formatDuration(effectiveElapsedMs);
   const timerWidth = stringWidth(timerText);
